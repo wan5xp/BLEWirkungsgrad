@@ -1,0 +1,50 @@
+<resources>
+    <string name="app_name">BLE Wirkungsgrad</string>
+    <string name="label_efficiency">Efficiency</string>
+    <string name="value_efficiency" translatable="false">--</string>
+    <string name="label_unit_efficiency" translatable="false">%</string>
+    <string name="label_mechanical">Mechanical System</string>
+    <string name="label_left">Left</string>
+    <string name="label_right">Right</string>
+    <string name="label_connect">Connect</string>
+    <string name="label_disconnect" translatable="false">Disconnect</string>
+    <string name="value_instant_power_left" translatable="false">-</string>
+    <string name="value_instant_power_right" translatable="false">-</string>
+    <string name="label_instant_power" translatable="false">Instant Power</string>
+    <string name="label_total_mechanical_power" translatable="false">Total Instant Mechanical Power</string>
+    <string name="value_total_mechanical_power" translatable="false">-</string>
+    <string name="label_electrical_system">Electrical System</string>
+    <string name="label_electrical_power" translatable="false">Charging Power</string>
+    <string name="value_electrical_power" translatable="false">-</string>
+    <string name="bonding">Bonding with the device&#8230;</string>
+    <string name="bonded">The device is now bonded.</string>
+    <string name="no_required_permission">Permission denied.</string>
+    <string name="scanner_subtitle_bonded">BONDED DEVICES:</string>
+    <string name="scanner_subtitle_not_bonded">AVAILABLE DEVICES:</string>
+    <string name="not_available">n/a</string>
+    <string name="scanner_title">Select device:</string>
+    <string name="scanner_empty">No device found</string>
+    <string name="permission_title">Permission required</string>
+    <string name="scanner_permission_rationale">Since Android 6.0 Marshmallow system requires granting access to device\'s location in order to scan for Bluetooth Smart devices. Bluetooth beacons may be used to determine the phone\'s and user\'s location.</string>
+    <string name="scanner_action_scan">Scan</string>
+    <string name="scanner_action_cancel">Cancel</string>
+    <string name="unknown_device">Unknown Device</string>
+    <string name="not_available_value">-</string>
+
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_connecting">Connecting</string>
+    <string name="battery">%d%%</string>
+    <string name="not_supported">The device does not have required services.</string>
+    <string name="no_ble">Device doesn\'t have BLE support!</string>
+    <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="ble_not_supported">BLE is not supported</string>
+    <string name="error_bluetooth_not_supported">Bluetooth is not supported</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BLE Wirkungsgrad</string>
+    <string name="label_efficiency">Wirkungsgrad</string>
+    <string name="label_mechanical">Mechanische System</string>
+    <string name="label_left">Links</string>
+    <string name="label_right">Rechts</string>
+    <string name="label_connect">Verbinden</string>
+    <string name="label_electrical_system">Elektrischesystem</string>
+</resources>
