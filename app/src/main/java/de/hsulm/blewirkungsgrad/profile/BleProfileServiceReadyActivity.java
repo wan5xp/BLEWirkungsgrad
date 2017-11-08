@@ -23,7 +23,6 @@ import android.widget.Toast;
 
 import java.util.UUID;
 
-import de.hsulm.blewirkungsgrad.EfficiencyActivity;
 import de.hsulm.blewirkungsgrad.R;
 import de.hsulm.blewirkungsgrad.log.ILogSession;
 import de.hsulm.blewirkungsgrad.log.LocalLogSession;
@@ -259,7 +258,7 @@ public abstract class BleProfileServiceReadyActivity<E extends BleProfileService
 
     protected final void setUpView() {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        mConnectButton = (Button) findViewById(R.id.action_connect);
+        mConnectButton = (Button) findViewById(R.id.buttonAddDevice);
         mDeviceNameView = (TextView) findViewById(R.id.textLeft);
         mBatteryLevelView = (TextView) findViewById(R.id.battery);
     }

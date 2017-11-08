@@ -19,12 +19,21 @@ import de.hsulm.blewirkungsgrad.profile.BleManager;
  */
 
 public class CPSManager extends BleManager<CPSManagerCallbacks> {
+    // Cycling Power Service
     // Service UUID
     public final static UUID UUID_CYCLE_POWER_SERVICE = UUID.fromString("00001818-0000-1000-8000-00805f9b34fb");
-    // Characteristic UUID
+    // Mandatory Characteristic UUID
     public final static UUID UUID_CYCLE_POWER_MEASUREMENT = UUID.fromString("00002A63-0000-1000-8000-00805f9b34fb");
     public final static UUID UUID_CYCLE_POWER_FEATURE = UUID.fromString("00002A65-0000-1000-8000-00805f9b34fb");
     public final static UUID UUID_SENSOR_LOCATION = UUID.fromString("00002A5D-0000-1000-8000-00805f9b34fb");
+    // Optional Characteristic UUID
+    public final static UUID UUID_CYCLE_POWER_VECTOR = UUID.fromString("00002A64-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_CYCLE_POWER_CONTROL_POINT = UUID.fromString("00002A66-0000-1000-8000-00805f9b34fb");
+    // Current Sensor
+    // Service UUID
+    public final static UUID UUID_CURRENT_SENSOR_SERVICE = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
+    // Characteristic UUID
+    public final static UUID UUID_ELECTRICAL_POWER = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
     private static final String TAG = "CPSManager";
     // Flags for CPSMeasurement characteristic
     private static final byte PEDAL_POWER_BALANCE_PRESENT = 0x01; // 1 bit
@@ -40,10 +49,11 @@ public class CPSManager extends BleManager<CPSManagerCallbacks> {
     private static final byte BOTTOM_DEAD_SPOT_ANGLE_PRESENT = 0x04; // 1 bit
     private static final byte ACCUMULATED_ENERGY_PRESENT = 0x08; // 1 bit
     private static final byte OFFSET_COMPENSATION_INDICATOR = 0x10; // 1 bit
-
     private BluetoothGattCharacteristic mCPSMeasurementCharacteristic;
     private BluetoothGattCharacteristic mCPSFeatureCharacteristic;
     private BluetoothGattCharacteristic mSensorLocationCharacteristic;
+    private BluetoothGattCharacteristic mCPSVectorCharacteristic;
+    private BluetoothGattCharacteristic mCPSControlPointCharacteristic;
     private final BleManagerGattCallback mGattCallback = new BleManagerGattCallback() {
 
         @Override
@@ -64,9 +74,19 @@ public class CPSManager extends BleManager<CPSManagerCallbacks> {
                 mCPSFeatureCharacteristic = service.getCharacteristic(UUID_CYCLE_POWER_FEATURE);
                 mSensorLocationCharacteristic = service.getCharacteristic(UUID_SENSOR_LOCATION);
             }
-            return (mCPSMeasurementCharacteristic != null) &&
-                    (mCPSFeatureCharacteristic != null) &&
-                    (mSensorLocationCharacteristic != null);
+            return mCPSMeasurementCharacteristic != null &&
+                    mCPSFeatureCharacteristic != null &&
+                    mSensorLocationCharacteristic != null;
+        }
+
+        @Override
+        protected boolean isOptionalServiceSupported(BluetoothGatt gatt) {
+            final BluetoothGattService service = gatt.getService(UUID_CYCLE_POWER_SERVICE);
+            if (service != null) {
+                mCPSVectorCharacteristic = service.getCharacteristic(UUID_CYCLE_POWER_VECTOR);
+                mCPSControlPointCharacteristic = service.getCharacteristic(UUID_CYCLE_POWER_CONTROL_POINT);
+            }
+            return mCPSVectorCharacteristic != null || mCPSControlPointCharacteristic != null;
         }
 
         @Override
@@ -78,134 +98,146 @@ public class CPSManager extends BleManager<CPSManagerCallbacks> {
 
         @Override
         public void onCharacteristicNotified(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
-            Logger.a(mLogSession, "\"" + CPSMeasurementParser.parse(characteristic) + "\" received");
+            if (UUID_CYCLE_POWER_MEASUREMENT.equals(characteristic.getUuid())) {
+                Logger.a(mLogSession, "\"" + CPSMeasurementParser.parse(characteristic) + "\" received");
 
-            // Decode the new data
-            int offset = 0;
-            final int flags1 = characteristic.getValue()[offset]; // 1 byte
-            final int flags2 = characteristic.getValue()[offset += 1]; // 1 byte
-            offset += 1;
-
-            // Read Instantaneous Power
-            final int instantPower = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
-            offset += 2;
-            mCallbacks.onInstantPowerReceived(gatt.getDevice(), instantPower);
-
-            final boolean pedalPowerBalancePresent = (flags1 & PEDAL_POWER_BALANCE_PRESENT) > 0;
-            final boolean pedalPowerBalanceReferenceLeft = (flags1 & PEDAL_POWER_BALANCE_REFERENCE_LEFT) > 0;
-            final boolean accumulatedTorquePresent = (flags1 & ACCUMULATED_TORQUE_PRESENT) > 0;
-            final boolean accumulatedTorqueSourceCrank = (flags1 & ACCUMULATED_TORQUE_SOURCE_CRANK) > 0;
-            final boolean wheelRevPresent = (flags1 & WHEEL_REVOLUTIONS_DATA_PRESENT) > 0;
-            final boolean crankRevPresent = (flags1 & CRANK_REVOLUTION_DATA_PRESENT) > 0;
-            final boolean extremeForceMagnitudePresent = (flags1 & EXTREME_FORCE_MAGNITUDE_PRESENT) > 0;
-            final boolean extremeTorqueMagnitudePresent = (flags1 & EXTREME_TORQUE_MAGNITUDE_PRESENT) > 0;
-            final boolean extremeAnglePresent = (flags2 & EXTREME_ANGLE_PRESENT) > 0;
-            final boolean topDeadSpotAnglePresent = (flags2 & TOP_DEAD_SPOT_ANGLE_PRESENT) > 0;
-            final boolean bottomDeadSpotAnglePresent = (flags2 & BOTTOM_DEAD_SPOT_ANGLE_PRESENT) > 0;
-            final boolean accumulatedEnergyPresent = (flags2 & ACCUMULATED_ENERGY_PRESENT) > 0;
-            final boolean offsetCompensationIndicator = (flags2 & OFFSET_COMPENSATION_INDICATOR) > 0;
-
-            if (pedalPowerBalancePresent) {
-                final int pedalPowerBalance = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, offset);
+                // Decode the new data
+                int offset = 0;
+                final int flags1 = characteristic.getValue()[offset]; // 1 byte
+                final int flags2 = characteristic.getValue()[offset += 1]; // 1 byte
                 offset += 1;
 
-                // Notify listener about the new measurement
-                mCallbacks.onPedalPowerBalanceReceived(gatt.getDevice(), pedalPowerBalance);
-            }
-
-            if (accumulatedTorquePresent) {
-                final int accumulatedTorque = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                // Read Instantaneous Power
+                final int instantPower = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
                 offset += 2;
+                mCallbacks.onInstantPowerReceived(gatt.getDevice(), instantPower);
 
-                // Notify listener about the new measurement
-                mCallbacks.onAccumulatedTorqueReceived(gatt.getDevice(), accumulatedTorque);
-            }
+                final boolean pedalPowerBalancePresent = (flags1 & PEDAL_POWER_BALANCE_PRESENT) > 0;
+                final boolean pedalPowerBalanceReferenceLeft = (flags1 & PEDAL_POWER_BALANCE_REFERENCE_LEFT) > 0;
+                final boolean accumulatedTorquePresent = (flags1 & ACCUMULATED_TORQUE_PRESENT) > 0;
+                final boolean accumulatedTorqueSourceCrank = (flags1 & ACCUMULATED_TORQUE_SOURCE_CRANK) > 0;
+                final boolean wheelRevPresent = (flags1 & WHEEL_REVOLUTIONS_DATA_PRESENT) > 0;
+                final boolean crankRevPresent = (flags1 & CRANK_REVOLUTION_DATA_PRESENT) > 0;
+                final boolean extremeForceMagnitudePresent = (flags1 & EXTREME_FORCE_MAGNITUDE_PRESENT) > 0;
+                final boolean extremeTorqueMagnitudePresent = (flags1 & EXTREME_TORQUE_MAGNITUDE_PRESENT) > 0;
+                final boolean extremeAnglePresent = (flags2 & EXTREME_ANGLE_PRESENT) > 0;
+                final boolean topDeadSpotAnglePresent = (flags2 & TOP_DEAD_SPOT_ANGLE_PRESENT) > 0;
+                final boolean bottomDeadSpotAnglePresent = (flags2 & BOTTOM_DEAD_SPOT_ANGLE_PRESENT) > 0;
+                final boolean accumulatedEnergyPresent = (flags2 & ACCUMULATED_ENERGY_PRESENT) > 0;
+                final boolean offsetCompensationIndicator = (flags2 & OFFSET_COMPENSATION_INDICATOR) > 0;
 
-            if (wheelRevPresent) {
-                final int wheelRevolutions = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, offset);
-                offset += 4;
+                if (pedalPowerBalancePresent) {
+                    final int pedalPowerBalance = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, offset);
+                    offset += 1;
 
-                final int lastWheelEventTime = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset); // 1/1024 s
-                offset += 2;
+                    // Notify listener about the new measurement
+                    mCallbacks.onPedalPowerBalanceReceived(gatt.getDevice(), pedalPowerBalance);
+                }
 
-                // Notify listener about the new measurement
-                mCallbacks.onWheelMeasurementReceived(gatt.getDevice(), wheelRevolutions, lastWheelEventTime);
-            }
+                if (accumulatedTorquePresent) {
+                    final int accumulatedTorque = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    offset += 2;
 
-            if (crankRevPresent) {
-                final int crankRevolutions = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                offset += 2;
+                    // Notify listener about the new measurement
+                    mCallbacks.onAccumulatedTorqueReceived(gatt.getDevice(), accumulatedTorque);
+                }
 
-                final int lastCrankEventTime = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                offset += 2;
+                if (wheelRevPresent) {
+                    final int wheelRevolutions = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, offset);
+                    offset += 4;
 
-                // Notify listener about the new measurement
-                mCallbacks.onCrankMeasurementReceived(gatt.getDevice(), crankRevolutions, lastCrankEventTime);
-            }
+                    final int lastWheelEventTime = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset); // 1/1024 s
+                    offset += 2;
 
-            if (extremeForceMagnitudePresent) {
-                final int maxForceMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
-                offset += 2;
+                    // Notify listener about the new measurement
+                    mCallbacks.onWheelMeasurementReceived(gatt.getDevice(), wheelRevolutions, lastWheelEventTime);
+                }
 
-                final int minForceMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
-                offset += 2;
+                if (crankRevPresent) {
+                    final int crankRevolutions = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    offset += 2;
 
-                // Notify listener about the new measurement
-                mCallbacks.onExtremeForceMagnitudeReceived(gatt.getDevice(), maxForceMagnitude, minForceMagnitude);
-            }
+                    final int lastCrankEventTime = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    offset += 2;
 
-            if (extremeTorqueMagnitudePresent) {
-                final int maxTorqueMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
-                offset += 2;
+                    // Notify listener about the new measurement
+                    mCallbacks.onCrankMeasurementReceived(gatt.getDevice(), crankRevolutions, lastCrankEventTime);
+                }
 
-                final int minTorqueMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
-                offset += 2;
+                if (extremeForceMagnitudePresent) {
+                    final int maxForceMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
+                    offset += 2;
 
-                // Notify listener about the new measurement
-                mCallbacks.onExtremeTorqueMagnitudeReceived(gatt.getDevice(), maxTorqueMagnitude, minTorqueMagnitude);
-            }
+                    final int minForceMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
+                    offset += 2;
 
-            if (extremeAnglePresent) {
-                final int maxAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset) & 0x0FF;
-                offset += 1;
+                    // Notify listener about the new measurement
+                    mCallbacks.onExtremeForceMagnitudeReceived(gatt.getDevice(), maxForceMagnitude, minForceMagnitude);
+                }
 
-                final int minAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset) >> 8;
-                offset += 2;
+                if (extremeTorqueMagnitudePresent) {
+                    final int maxTorqueMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
+                    offset += 2;
 
-                // Notify listener about the new measurement
-                mCallbacks.onExtremeAnglesReceived(gatt.getDevice(), maxAngle, minAngle);
-            }
+                    final int minTorqueMagnitude = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, offset);
+                    offset += 2;
 
-            if (topDeadSpotAnglePresent) {
-                final int topDeadSpotAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                offset += 2;
+                    // Notify listener about the new measurement
+                    mCallbacks.onExtremeTorqueMagnitudeReceived(gatt.getDevice(), maxTorqueMagnitude, minTorqueMagnitude);
+                }
 
-                // Notify listener about the new measurement
-                mCallbacks.onTopDeadSpotAngleReceived(gatt.getDevice(), topDeadSpotAngle);
-            }
+                if (extremeAnglePresent) {
+                    final int maxAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset) & 0x0FF;
+                    offset += 1;
 
-            if (bottomDeadSpotAnglePresent) {
-                final int bottomDeadSpotAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                offset += 2;
+                    final int minAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset) >> 8;
+                    offset += 2;
 
-                // Notify listener about the new measurement
-                mCallbacks.onBottomDeadSpotAngleReceived(gatt.getDevice(), bottomDeadSpotAngle);
-            }
+                    // Notify listener about the new measurement
+                    mCallbacks.onExtremeAnglesReceived(gatt.getDevice(), maxAngle, minAngle);
+                }
 
-            if (accumulatedEnergyPresent) {
-                final int accumulatedEnergy = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                // offset += 2;
+                if (topDeadSpotAnglePresent) {
+                    final int topDeadSpotAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    offset += 2;
 
-                // Notify listener about the new measurement
-                mCallbacks.onAccumulatedEnergyReceived(gatt.getDevice(), accumulatedEnergy);
+                    // Notify listener about the new measurement
+                    mCallbacks.onTopDeadSpotAngleReceived(gatt.getDevice(), topDeadSpotAngle);
+                }
+
+                if (bottomDeadSpotAnglePresent) {
+                    final int bottomDeadSpotAngle = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    offset += 2;
+
+                    // Notify listener about the new measurement
+                    mCallbacks.onBottomDeadSpotAngleReceived(gatt.getDevice(), bottomDeadSpotAngle);
+                }
+
+                if (accumulatedEnergyPresent) {
+                    final int accumulatedEnergy = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
+                    // offset += 2;
+
+                    // Notify listener about the new measurement
+                    mCallbacks.onAccumulatedEnergyReceived(gatt.getDevice(), accumulatedEnergy);
+                }
+            } else if (UUID_CYCLE_POWER_VECTOR.equals(characteristic.getUuid())) {
+
+            } else if (UUID_ELECTRICAL_POWER.equals(characteristic.getUuid())) {
+                final int ePower = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT8, 0);
+
+                mCallbacks.onElectricalPowerReceived(gatt.getDevice(), ePower);
             }
         }
 
         @Override
         public void onCharacteristicRead(final BluetoothGatt gatt, final BluetoothGattCharacteristic characteristic) {
-            final String sensorLocation = getSensorLocation(characteristic.getValue()[0]);
-            Logger.a(mLogSession, "\" Sensor Location: " + sensorLocation + "\" received");
-            mCallbacks.onSensorLocationFound(gatt.getDevice(), sensorLocation);
+            if (UUID_SENSOR_LOCATION.equals(characteristic.getUuid())) {
+                final String sensorLocation = getSensorLocation(characteristic.getValue()[0]);
+                Logger.a(mLogSession, "\" Sensor Location: " + sensorLocation + "\" received");
+                mCallbacks.onSensorLocationFound(gatt.getDevice(), sensorLocation);
+            } else if (UUID_CYCLE_POWER_FEATURE.equals(characteristic.getUuid())) {
+
+            }
         }
     };
 

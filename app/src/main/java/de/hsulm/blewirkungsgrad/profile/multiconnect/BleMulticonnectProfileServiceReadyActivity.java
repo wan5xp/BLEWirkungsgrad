@@ -241,7 +241,7 @@ public abstract class BleMulticonnectProfileServiceReadyActivity<E extends BleMu
         }
     }
 
-    protected int getLoggetProfileTitle() {
+    protected int getLoggerProfileTitle() {
         return 0;
     }
 
@@ -251,7 +251,7 @@ public abstract class BleMulticonnectProfileServiceReadyActivity<E extends BleMu
 
     @Override
     public void onDeviceSelected(BluetoothDevice device, String name) {
-        final int titleId = getLoggetProfileTitle();
+        final int titleId = getLoggerProfileTitle();
         ILogSession logSession = null;
         if (titleId > 0) {
             logSession = Logger.newSession(

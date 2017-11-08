@@ -40,4 +40,6 @@ public interface CPSManagerCallbacks extends BleManagerCallbacks {
 
     void onSensorLocationFound(final BluetoothDevice device, final String sensorLocation);
 
+    void onElectricalPowerReceived(final BluetoothDevice device, final int ePower);
+
 }
