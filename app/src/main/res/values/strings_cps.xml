@@ -20,33 +20,30 @@
   ~ USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   -->
 <resources>
-    <string name="cps_feature_title">CPS</string>
+    <string name="cps_feature_title" translatable="false">CPS</string>
     <string name="cps_settings_title">CPS Settings</string>
 
-    <string name="cps_feature_title_long">CYCLING SPEED &amp; CADENCE</string>
+    <string name="cps_feature_title_long">CYCLING POWER</string>
     <dimen name="cpc_feature_title_long_margin">-192dp</dimen>
-
-    <string name="cps_section_cps_header">SPEED AND CADENCE</string>
     <string name="cps_power">POWER</string>
     <string name="cps_instant_power">Instantaneous Power</string>
-    <string name="cps_power_unit_W">W</string>
+    <string name="cps_power_unit_W" translatable="false">W</string>
     <string name="cps_speed">SPEED</string>
-    <string name="cps_speed_unit_m_s">m/s</string>
-    <string name="cps_speed_unit_km_h">km/h</string>
-    <string name="cps_speed_unit_mph">mph</string>
+    <string name="cps_speed_unit_m_s" translatable="false">m/s</string>
+    <string name="cps_speed_unit_km_h" translatable="false">km/h</string>
+    <string name="cps_speed_unit_mph" translatable="false">mph</string>
     <string name="cps_cadence">CADENCE</string>
-    <string name="cps_cadence_unit">RPM</string>
+    <string name="cps_cadence_unit" translatable="false">RPM</string>
     <string name="cps_distance">DISTANCE</string>
-    <string name="cps_distance_unit_m">m</string>
-    <string name="cps_distance_unit_km">km</string>
-    <string name="cps_distance_unit_yd">yd</string>
-    <string name="cps_distance_unit_mile">mile</string>
+    <string name="cps_distance_unit_m" translatable="false">m</string>
+    <string name="cps_distance_unit_km" translatable="false">km</string>
+    <string name="cps_distance_unit_yd" translatable="false">yd</string>
+    <string name="cps_distance_unit_mile" translatable="false">mile</string>
     <string name="cps_total_distance">TOTAL DISTANCE</string>
-    <string name="cps_total_distance_unit_km">km</string>
-    <string name="cps_total_distance_unit_mile">mile</string>
-    <string name="cps_gear_ratio">GEAR RATIO</string>
+    <string name="cps_total_distance_unit_km" translatable="false">km</string>
+    <string name="cps_total_distance_unit_mile" translatable="false">mile</string>
 
-    <string name="cps_default_name">DEFAULT CPS</string>
+    <string name="cps_default_name" translatable="false">DEFAULT CPS</string>
     <string name="cps_notification_action_disconnect">Disconnect</string>
     <string name="cps_notification_connected_message">%s is connected.</string>
 
@@ -159,7 +156,7 @@
     </string-array>
 
     <string name="cps_settings_units_title">Units</string>
-    <string name="cps_settings_units_summary">%s</string>
+    <string name="cps_settings_units_summary" translatable="false">%s</string>
     <string-array name="cps_settings_units">
         <item>m/s</item>
         <item>km/h</item>
@@ -191,7 +188,6 @@
     </string-array>
     <string name="cps_location_other">Reserved</string>
 
-    <string name="cps_about_text">CPS (Cycling Speed and Cadence) profile allows you to connect to your bike activity sensor.
-        \nIt reads wheel and crank data if they are supported by the sensor and calculates speed, cadence, total and trip distance and gear ratio. Set up your wheel size in the settings to get correct readings.
-        \nYou may exit the application when connected while still getting notifications.</string>
+    <string name="cps_about_text">CP (Cycling Power) profile allows you to connect to your bike power sensor.
+        \nIt reads power- related data from the sensor.</string>
 </resources>

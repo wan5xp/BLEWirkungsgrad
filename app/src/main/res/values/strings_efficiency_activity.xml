@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="label_efficiency">Efficiency</string>
+    <string name="value_efficiency" translatable="false">--</string>
+    <string name="label_unit_efficiency" translatable="false">%</string>
+    <string name="label_mechanical">Mechanical System</string>
+    <string name="label_left">Left</string>
+    <string name="label_right">Right</string>
+    <string name="label_connect">Connect</string>
+    <string name="label_disconnect" translatable="false">Disconnect</string>
+    <string name="value_instant_power_left" translatable="false">-</string>
+    <string name="value_instant_power_right" translatable="false">-</string>
+    <string name="label_instant_power">Instant Power</string>
+    <string name="label_total_mechanical_power">Total Instant Mechanical Power</string>
+    <string name="value_total_mechanical_power" translatable="false">-</string>
+    <string name="label_electrical_system">Electrical System</string>
+    <string name="label_electrical_power">Charging Power</string>
+    <string name="value_electrical_power" translatable="false">-</string>
+    <string name="label_add_device">Add Pedal</string>
+</resources>
