@@ -1,334 +1,379 @@
 package de.hsulm.blewirkungsgrad;
 
+import android.Manifest;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.BroadcastReceiver;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.v4.content.LocalBroadcastManager;
+import android.os.Handler;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.View;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
-import java.util.Locale;
 import java.util.UUID;
 
-import de.hsulm.blewirkungsgrad.cps.CPSManager;
-import de.hsulm.blewirkungsgrad.cps.CPSService;
-import de.hsulm.blewirkungsgrad.profile.multiconnect.BleMulticonnectProfileService;
-import de.hsulm.blewirkungsgrad.profile.multiconnect.BleMulticonnectProfileServiceReadyActivity;
-import de.hsulm.blewirkungsgrad.scanner.ScannerFragment;
+public class EfficiencyActivity extends AppCompatActivity {
+    public final static UUID UUID_CLIENT_CHARACTERISTIC_CONFIG = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_ELECTRICAL_POWER_SERVICE = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_ELECTRICAL_POWER_MEASUREMENT = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
+    // Cycling Power Service
+    // Service UUID
+    public final static UUID UUID_CYCLE_POWER_SERVICE = UUID.fromString("00001818-0000-1000-8000-00805f9b34fb");
+    // Mandatory Characteristic UUID
+    public final static UUID UUID_CYCLE_POWER_MEASUREMENT = UUID.fromString("00002A63-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_CYCLE_POWER_FEATURE = UUID.fromString("00002A65-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_SENSOR_LOCATION = UUID.fromString("00002A5D-0000-1000-8000-00805f9b34fb");
+    // Optional Characteristic UUID
+    public final static UUID UUID_CYCLE_POWER_VECTOR = UUID.fromString("00002A64-0000-1000-8000-00805f9b34fb");
+    public final static UUID UUID_CYCLE_POWER_CONTROL_POINT = UUID.fromString("00002A66-0000-1000-8000-00805f9b34fb");
+    private static final String TAG = EfficiencyActivity.class.getSimpleName();
+    private static final long SCAN_PERIOD = 5000;
+    private static final int REQUEST_ENABLE_BT = 2;
+    private static final String CURRENT_SENSOR_ADDRESS = "3C:A3:08:95:55:F9";
+    private static final String LEFT_PEDAL_ADDRESS = "D1:09:1D:D5:D5:42";
+    private static final String RIGHT_PEDAL_ADDRESS = "CD:F4:AA:BC:6D:0F";
+    private Handler mHandler;
+    private BluetoothAdapter mBluetoothAdapter;
+    private TextView ePowerTV, lPowerTV, rPowerTV, eConn, lConn, rConn, wirkungsgradTV, mPowerTV;
 
-public class EfficiencyActivity extends BleMulticonnectProfileServiceReadyActivity<CPSService.CPSBinder> {
-    private static final String TAG = "EfficiencyActivity";
-    private TextView mValueInstantPowerL;
-    private TextView mValueInstantPowerR;
-    private TextView mValueTotalIP;
-    private TextView mValueEP;
-    private TextView mEfficiency;
-    private TextView mLeftLabel;
-    private TextView mRightLabel;
-    private Button mAddPedal;
-    private Button mElectricConnect;
-
-    private BluetoothDevice mLeftPedal, mRightPedal, mCurrentSensor;
-
-    private int electricalPower = -1;
-    private int instantPowerL = 0;
-    private int instantPowerR = 0;
-    private int totalInstantPower = -1;
-    private int mCadenceL = -1;
-    private int mCadenceR = -1;
-
-    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    private BluetoothGatt mElectricGatt, mLeftGatt, mRightGatt;
+    private int lPower = 0, rPower = 0;
+    private float ePower = 0;
+    private BluetoothGattCallback CurrentGattCallback = new BluetoothGattCallback() {
         @Override
-        public void onReceive(final Context context, final Intent intent) {
-            final String action = intent.getAction();
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                Log.i(TAG, getString(R.string.electric_connected) + gatt.getDevice().getName());
+                Log.i(TAG, getString(R.string.service_discovery) +
+                        gatt.discoverServices());
 
-            final BluetoothDevice device = intent.getParcelableExtra(CPSService.EXTRA_DEVICE);
-            if (CPSService.BROADCAST_INSTANT_POWER.equals(action)) {
-                final int instantPower = intent.getIntExtra(CPSService.EXTRA_INSTANT_POWER, 0); // [m/s]
-                // Update GUI
-                onInstantPowerReceived(device, instantPower);
-            } else if (CPSService.BROADCAST_PEDAL_POWER_BALANCE.equals(action)) {
-                final int pedalPowerBalance = intent.getIntExtra(CPSService.EXTRA_PEDAL_POWER_BALANCE, 0);
-                // Update GUI
-                onPedalPowerBalanceReceived(device, pedalPowerBalance);
-            } else if (CPSService.BROADCAST_ACCUMULATED_TORQUE.equals(action)) {
-                final int accumulatedTorque = intent.getIntExtra(CPSService.EXTRA_ACCUMULATED_TORQUE, 0);
-                // Update GUI
-                onAccumulatedTorqueReceived(device, accumulatedTorque);
-            } else if (CPSService.BROADCAST_WHEEL_DATA.equals(action)) {
-                final int wheelRPM = intent.getIntExtra(CPSService.EXTRA_WHEEL_RPM, 0);
-                final int sessionRev = intent.getIntExtra(CPSService.EXTRA_SESSION_REV, 0);
-                final int totalRev = intent.getIntExtra(CPSService.EXTRA_TOTAL_REV, 0);
-                // Update GUI
-                onWheelDataReceived(device, wheelRPM, sessionRev, totalRev);
-            } else if (CPSService.BROADCAST_CRANK_DATA.equals(action)) {
-                final int cadence = intent.getIntExtra(CPSService.EXTRA_CADENCE, 0);
-                // Update GUI
-                onCrankDataReceived(device, cadence);
-            } else if (CPSService.BROADCAST_EXTREME_FORCE.equals(action)) {
-                final int maxForce = intent.getIntExtra(CPSService.EXTRA_MAX_FORCE, 0);
-                final int minForce = intent.getIntExtra(CPSService.EXTRA_MIN_FORCE, 0);
-                // Update GUI
-                onExtremeForceReceived(device, maxForce, minForce);
-            } else if (CPSService.BROADCAST_EXTREME_TORQUE.equals(action)) {
-                final int maxTorque = intent.getIntExtra(CPSService.EXTRA_MAX_TORQUE, 0);
-                final int minTorque = intent.getIntExtra(CPSService.EXTRA_MIN_TORQUE, 0);
-                // Update GUI
-                onExtremeTorqueReceived(device, maxTorque, minTorque);
-            } else if (CPSService.BROADCAST_EXTREME_ANGLES.equals(action)) {
-                final int maxAngle = intent.getIntExtra(CPSService.EXTRA_MAX_ANGLE, 0);
-                final int minAngle = intent.getIntExtra(CPSService.EXTRA_MIN_ANGLE, 0);
-                // Update GUI
-                onExtremeAnglesReceived(device, maxAngle, minAngle);
-            } else if (CPSService.BROADCAST_TOP_DEAD_SPOT_ANGLE.equals(action)) {
-                final int topAngle = intent.getIntExtra(CPSService.EXTRA_TOP_DEAD_SPOT_ANGLE, 0);
-                // Update GUI
-                onTopDeadSpotAngleReceived(device, topAngle);
-            } else if (CPSService.BROADCAST_BOTTOM_DEAD_SPOT_ANGLE.equals(action)) {
-                final int bottomAngle = intent.getIntExtra(CPSService.EXTRA_BOTTOM_DEAD_SPOT_ANGLE, 0);
-                // Update GUI
-                onBottomDeadSpotAngleReceived(device, bottomAngle);
-            } else if (CPSService.BROADCAST_ACCUMULATED_ENERGY.equals(action)) {
-                final int accumulatedEnergy = intent.getIntExtra(CPSService.EXTRA_ACCUMULATED_ENERGY, 0);
-                // Update GUI
-                onAccumulatedEnergyReceived(device, accumulatedEnergy);
-            } else if (CPSService.BROADCAST_SENSOR_LOCATION.equals(action)) {
-                final String sensorLocation = intent.getStringExtra(CPSService.EXTRA_SENSOR_LOCATION);
-                // Update GUI
-                onSensorLocationFound(device, sensorLocation);
-            } else if (CPSService.BROADCAST_ELECTRICAL_POWER.equals(action)) {
-                final int ePower = intent.getIntExtra(CPSService.EXTRA_ELECTRICAL_POWER, 0);
-                // Update GUI
-                onElectricalPowerReceived(device, ePower);
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Log.i(TAG, gatt.getDevice().getName() + R.string.device_disconnected);
+                mElectricGatt.close();
+                mElectricGatt = null;
+                eConn.setText(R.string.label_electrical_power);
+                onConnectedDeviceCheck();
             }
+        }
 
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.i(TAG, gatt.getDevice().getName() + getString(R.string.service_discovered));
+                final BluetoothGattService service = gatt.getService(UUID_ELECTRICAL_POWER_SERVICE);
+                if (service != null) {
+                    final BluetoothGattCharacteristic electricChar = service.getCharacteristic(UUID_ELECTRICAL_POWER_MEASUREMENT);
+                    if (electricChar != null) {
+                        mElectricGatt.setCharacteristicNotification(electricChar, true);
+                        BluetoothGattDescriptor descriptor = electricChar.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
+                        if (descriptor != null) {
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            mElectricGatt.writeDescriptor(descriptor);
+                            eConn.setText(gatt.getDevice().getName());
+                        }
+                    }
+                } else {
+                    Log.e(TAG, gatt.getDevice().getName() + getString(R.string.service_not_found));
+                }
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            Log.i(TAG, gatt.getDevice().getName() + getString(R.string.data_received) + characteristic.getValue().toString());
+            if (characteristic.getValue().length > 1) {
+                onElectricalPowerReceived(characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT32, 0));
+            }
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            if (status == 0) {
+                Log.i(TAG, gatt.getDevice().getName() + getString(R.string.data_request));
+            }
+        }
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (descriptor.getValue().equals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
+                Log.i(TAG, gatt.getDevice().getName() + getString(R.string.notification_enabled));
+            }
+        }
+    };
+    private BluetoothGattCallback CPSGattCallback = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                if (gatt == mLeftGatt) {
+                    Log.i(TAG, getString(R.string.left_connected) + gatt.getDevice().getName());
+                } else if (gatt == mRightGatt) {
+                    Log.i(TAG, getString(R.string.right_connected) + gatt.getDevice().getName());
+                }
+                Log.i(TAG, getString(R.string.service_discovery) +
+                        gatt.discoverServices());
+
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                Log.i(TAG, gatt.getDevice().getName() + R.string.device_disconnected);
+                if (gatt == mLeftGatt) {
+                    mLeftGatt.close();
+                    mLeftGatt = null;
+                    lConn.setText(R.string.label_left);
+                } else if (gatt == mRightGatt) {
+                    mRightGatt.close();
+                    mRightGatt = null;
+                    rConn.setText(R.string.label_right);
+                }
+                onConnectedDeviceCheck();
+            }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                Log.i(TAG, gatt.getDevice().getName() + getString(R.string.service_discovered));
+                final BluetoothGattService service = gatt.getService(UUID_CYCLE_POWER_SERVICE);
+                if (service != null) {
+                    final BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID_CYCLE_POWER_MEASUREMENT);
+                    gatt.setCharacteristicNotification(characteristic, true);
+                    final BluetoothGattDescriptor descriptor = characteristic.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
+                    if (descriptor != null) {
+                        descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        gatt.writeDescriptor(descriptor);
+                        if (gatt == mLeftGatt) {
+                            lConn.setText(gatt.getDevice().getName());
+                        } else if (gatt == mRightGatt) {
+                            rConn.setText(gatt.getDevice().getName());
+                        }
+                    }
+                } else {
+                    Log.e(TAG, gatt.getDevice().getName() + getString(R.string.service_not_found));
+                }
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            Log.i(TAG, gatt.getDevice().getName() + getString(R.string.data_received));
+            final int instantPower = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_SINT16, 2);
+            onInstantPowerReceived(gatt, instantPower);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+
+        }
+
+        @Override
+        public void onDescriptorRead(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            if (status == 0) {
+                Log.i(TAG, gatt.getDevice().getName() + getString(R.string.notification_enabled));
+            }
+        }
+
+    };
+    // Diese Methode wertet
+    private BluetoothAdapter.LeScanCallback mScanCallback = new BluetoothAdapter.LeScanCallback() {
+        @Override
+        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+            Log.d(TAG, device.getAddress());
+            switch (device.getAddress()) {
+                case LEFT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.left_found));
+                    startLeScanning(false);
+                    mLeftGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    break;
+                case RIGHT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.right_found));
+                    startLeScanning(false);
+                    mRightGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    break;
+                case CURRENT_SENSOR_ADDRESS:
+                    Log.i(TAG, getString(R.string.electric_found));
+                    startLeScanning(false);
+                    mElectricGatt = device.connectGatt(getContext(), false, CurrentGattCallback);
+                    break;
+                default:
+                    Log.d(TAG, device.getAddress());
+                    break;
+            }
         }
     };
 
-    private static IntentFilter makeIntentFilter() {
-        final IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(CPSService.BROADCAST_INSTANT_POWER);
-        intentFilter.addAction(CPSService.BROADCAST_PEDAL_POWER_BALANCE);
-        intentFilter.addAction(CPSService.BROADCAST_ACCUMULATED_TORQUE);
-        intentFilter.addAction(CPSService.BROADCAST_WHEEL_DATA);
-        intentFilter.addAction(CPSService.BROADCAST_CRANK_DATA);
-        intentFilter.addAction(CPSService.BROADCAST_EXTREME_FORCE);
-        intentFilter.addAction(CPSService.BROADCAST_EXTREME_ANGLES);
-        intentFilter.addAction(CPSService.BROADCAST_TOP_DEAD_SPOT_ANGLE);
-        intentFilter.addAction(CPSService.BROADCAST_BOTTOM_DEAD_SPOT_ANGLE);
-        intentFilter.addAction(CPSService.BROADCAST_ACCUMULATED_ENERGY);
-        intentFilter.addAction(CPSService.BROADCAST_SENSOR_LOCATION);
-        intentFilter.addAction(CPSService.BROADCAST_ELECTRICAL_POWER);
-        return intentFilter;
-    }
-
     @Override
-    protected void onCreateView(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        mHandler = new Handler();
+
+        // Nach BLE Funktion prüfen
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            finish();
+        }
+
+        // Ein BluetoothAdapter Objekt erzeugen
+        final BluetoothManager manager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        mBluetoothAdapter = manager.getAdapter();
+
+        // Ist der Bluetooth schon angeschaltet?
+        if (mBluetoothAdapter == null || !mBluetoothAdapter.isEnabled()) {
+            // Falls nicht, bitten wir der Benutzer, Bluetooth an zu schalten
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+
+        }
+
+        // Wir brauchen diese Erlaubnis, sodass wir auf den BluetoothScanner zugreifen dürfen
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ENABLE_BT);
+        }
+
+        // Layout einstellen
         setContentView(R.layout.activity_efficiency);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        setGUI();
-    }
-
-    @Override
-    protected void onViewCreated(final Bundle savedInstanceState) {
-        // set GUI
-        getSupportActionBar().setDisplayHomeAsUpEnabled(false);
-    }
-
-    @Override
-    protected void onInitialise(final Bundle savedInstanceState) {
-        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, makeIntentFilter());
-    }
-
-    private void setGUI() {
-
-        mValueInstantPowerL = (TextView) findViewById(R.id.textValueLeftPower);
-        mValueInstantPowerR = (TextView) findViewById(R.id.textValueRightPower);
-        mLeftLabel = (TextView) findViewById(R.id.textLeft);
-        mRightLabel = (TextView) findViewById(R.id.textRight);
-        mValueTotalIP = (TextView) findViewById(R.id.textValueTotalMPower);
-        mValueEP = (TextView) findViewById(R.id.textValueEPower);
-        mEfficiency = (TextView) findViewById(R.id.textValueEfficiency);
-        mAddPedal = (Button) findViewById(R.id.buttonAddDevice);
+        ePowerTV = (TextView) findViewById(R.id.textValueEPower);
+        lPowerTV = (TextView) findViewById(R.id.textValueLeftPower);
+        rPowerTV = (TextView) findViewById(R.id.textValueRightPower);
+        mPowerTV = (TextView) findViewById(R.id.textValueTotalMPower);
+        wirkungsgradTV = (TextView) findViewById(R.id.textValueEfficiency);
+        eConn = (TextView) findViewById(R.id.textEPower);
+        lConn = (TextView) findViewById(R.id.textLeft);
+        rConn = (TextView) findViewById(R.id.textRight);
 
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        setDefaultUI();
-    }
-
-    protected void setDefaultUI() {
-
-        mValueInstantPowerL.setText(R.string.not_available_value);
-        mValueInstantPowerR.setText(R.string.not_available_value);
-        mValueTotalIP.setText(R.string.not_available_value);
-        mValueEP.setText(R.string.not_available_value);
-        mEfficiency.setText(R.string.not_available_value);
+        onConnectedDeviceCheck();
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        mLeftPedal = null;
-        mRightPedal = null;
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
+    protected void onPause() {
+        super.onPause();
+        close();
     }
 
-    @Override
-    protected int getLoggerProfileTitle() {
-        return R.string.cps_feature_title;
-    }
+    // Nach Bluetooth LE Geräte suchen
+    private void startLeScanning(final boolean enable) {
+        if (enable) {
+            // Falls true, dann stoppen wir nach 5 Sekunden, die Geräte nach zu suchen
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mBluetoothAdapter.stopLeScan(mScanCallback);
+                    // Wir prüfen, ob alle Geräte schon verbunden sind
+                    onConnectedDeviceCheck();
+                }
+            }, SCAN_PERIOD);
 
-    @Override
-    protected void onServiceBinded(CPSService.CPSBinder binder) {
-
-    }
-
-    @Override
-    protected void onServiceUnbinded() {
-
-    }
-
-    @Override
-    public void onDeviceConnecting(final BluetoothDevice device) {
-
-    }
-
-    @Override
-    public void onDeviceConnected(BluetoothDevice device) {
-
-    }
-
-    @Override
-    public void onDeviceDisconnected(BluetoothDevice device) {
-        if (device == mLeftPedal || device == mRightPedal) {
-            mAddPedal.setEnabled(true);
-        }
-
-    }
-
-    public void onAddCurrentSensorClick(final View view) {
-        if (isBLEEnabled()) {
-            showDeviceScanningDialog(getFilterUUID());
+            mBluetoothAdapter.startLeScan(mScanCallback);
         } else {
-            showBLEDialog();
+            // Falls false, dann stoppen wir jetzt, die Geräte nach zu suchen
+            mBluetoothAdapter.stopLeScan(mScanCallback);
         }
     }
 
-
-    @Override
-    protected int getAboutTextID() {
-        return R.string.cps_about_text;
+    private Context getContext() {
+        return this;
     }
 
-    @Override
-    protected Class<? extends BleMulticonnectProfileService> getServiceClass() {
-        return CPSService.class;
+    // Diese Methode zeigt den Leistungswert für die Elektrischessystem
+    private void onElectricalPowerReceived(int ePower100) {
+        Log.i(TAG, getString(R.string.electrical_power_received) + ePower100);
+        final float electricPower = ePower100 / 100.0f;
+
+        ePowerTV.setText(String.valueOf(electricPower));
+        ePower = electricPower;
     }
 
-    @Override
-    protected UUID getFilterUUID() {
-        return CPSManager.UUID_CYCLE_POWER_SERVICE;
-    }
-
-    private void onSensorLocationFound(BluetoothDevice device, String sensorLocation) {
-        Log.i(TAG, device.getName() + ": Sensor Location : " + sensorLocation);
-        final String[] locations = getResources().getStringArray(R.array.cps_locations);
-        if (locations[7].equals(sensorLocation)) {
-            mLeftPedal = device;
-            mLeftLabel.setText(device.getName());
-        } else if (locations[8].equals(sensorLocation)) {
-            mRightPedal = device;
-            mRightLabel.setText(device.getName());
+    // Diese Methode zeigt die Leistungswerte für jede Pedale auf der GUI
+    private void onInstantPowerReceived(BluetoothGatt gatt, int instantPower) {
+        Log.d(TAG, gatt.getDevice().getName() + getString(R.string.instant_power_received) +
+                String.valueOf(instantPower) + getString(R.string.unit_power_watt));
+        if (gatt == mLeftGatt) {
+            lPowerTV.setText(String.valueOf(instantPower));
+            lPower = instantPower;
+        } else if (gatt == mRightGatt) {
+            rPowerTV.setText(String.valueOf(instantPower));
+            rPower = instantPower;
         }
-
-        if (mLeftPedal != null && mRightPedal != null) {
-            mAddPedal.setEnabled(false);
-        }
-    }
-
-    private void onInstantPowerReceived(BluetoothDevice device, int instantPower) {
-        if (device == mLeftPedal) {
-            instantPowerL = instantPower;
-            mValueInstantPowerL.setText(String.format(Locale.GERMAN, "%d", instantPower));
-        } else if (device == mRightPedal) {
-            instantPowerR = instantPower;
-            mValueInstantPowerR.setText(String.format(Locale.GERMAN, "%d", instantPower));
-        }
-
-        totalInstantPower = instantPowerL + instantPowerR;
-        mValueTotalIP.setText(String.format(Locale.GERMAN, "%d", totalInstantPower));
-        if (totalInstantPower > 0) {
+        if (mElectricGatt != null) {
+            requestElectricalPower();
             updateEfficiency();
         }
+        final int mPower = lPower + rPower;
+        mPowerTV.setText(String.valueOf(mPower));
     }
 
-    private void onPedalPowerBalanceReceived(BluetoothDevice device, int pedalPowerBalance) {
-
-    }
-
-    private void onAccumulatedTorqueReceived(BluetoothDevice device, int accumulatedTorque) {
-
-    }
-
-    private void onWheelDataReceived(BluetoothDevice device, int wheelRPM, int sessionRev, int totalRev) {
-
-    }
-
-    private void onCrankDataReceived(BluetoothDevice device, int cadence) {
-        if (device == mLeftPedal) {
-            mCadenceL = cadence;
-        } else if (device == mRightPedal) {
-            mCadenceR = cadence;
-        }
-    }
-
-    private void onExtremeForceReceived(BluetoothDevice device, int maxForce, int minForce) {
-
-    }
-
-    private void onExtremeTorqueReceived(BluetoothDevice device, int maxTorque, int minTorque) {
-
-    }
-
-    private void onExtremeAnglesReceived(BluetoothDevice device, int maxAngle, int minAngle) {
-
-    }
-
-    private void onTopDeadSpotAngleReceived(BluetoothDevice device, int topDeadSpotAngle) {
-
-    }
-
-    private void onBottomDeadSpotAngleReceived(BluetoothDevice device, int bottomDeadSpotAngle) {
-
-    }
-
-    private void onAccumulatedEnergyReceived(BluetoothDevice device, int accumulatedEnergy) {
-
-    }
-
-    private void onElectricalPowerReceived(BluetoothDevice device, int ePower) {
-        electricalPower = ePower;
-        mValueEP.setText(String.format(Locale.GERMAN, "%d", electricalPower));
-    }
-
+    // Diese Methode setzt die neue Daten ein
     private void updateEfficiency() {
-        if (totalInstantPower > 0 && electricalPower >= 0) { // Prevent divide by 0
-            final int efficiency = (electricalPower * 100) / totalInstantPower;
-            mEfficiency.setText(String.format(Locale.GERMAN, "%d", efficiency));
+        final int mPower = Integer.parseInt((String) mPowerTV.getText());
+
+        int wirkungsgrad = 0;
+        if (mPower != 0)
+            wirkungsgrad = (int) ((ePower * 100.0f) / mPower);
+        wirkungsgradTV.setText(String.valueOf(wirkungsgrad));
+    }
+
+    // Wir fordern vom Messgerät an, die Daten an App senden
+    private void requestElectricalPower() {
+        if (mElectricGatt != null) {
+            final BluetoothGattService service = mElectricGatt.getService(UUID_ELECTRICAL_POWER_SERVICE);
+            if (service != null) {
+                final BluetoothGattCharacteristic characteristic = service.getCharacteristic(UUID_ELECTRICAL_POWER_MEASUREMENT);
+                if (characteristic != null) {
+                    characteristic.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT16, 0);
+                    mElectricGatt.writeCharacteristic(characteristic);
+                }
+            }
         }
     }
 
-    private void showDeviceScanningDialog(final UUID filter) {
-        final ScannerFragment dialog = ScannerFragment.getInstance(filter);
-        dialog.show(getSupportFragmentManager(), "scan_fragment");
+    // Man prüft, ob alle Geräte schon verbunden sind
+    private void onConnectedDeviceCheck() {
+        Log.d(TAG, getString(R.string.connect_check));
+        if (mLeftGatt != null && mRightGatt != null && mElectricGatt != null) {
+            Log.i(TAG, getString(R.string.connect_all_success));
+            // Wenn alle Geräte schon verbunden sind, stoppen wir die Scanner
+            startLeScanning(false);
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        } else {
+            // Wenn nicht alle verbunden sind, starten wir wieder nach 1 Sekunde, die Geräte zu suchen
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    startLeScanning(true);
+                }
+            }, 1000);
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+    }
+
+    // Diese Methode schliesen die Verbindung von Bluetooth Geräte mit dem App
+    private void close() {
+        if (mElectricGatt != null) {
+            mElectricGatt.close();
+            mElectricGatt = null;
+        }
+        if (mLeftGatt != null) {
+            mLeftGatt.close();
+            mLeftGatt = null;
+        }
+        if (mRightGatt != null) {
+            mRightGatt.close();
+            mRightGatt = null;
+        }
     }
 }

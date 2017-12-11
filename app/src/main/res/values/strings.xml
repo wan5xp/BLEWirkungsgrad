@@ -1,3 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BLE Wirkungsgrad</string>
+    <string name="ble_not_supported">BLE not supported</string>
+    <string name="left_found">Left Pedal found. Connecting...</string>
+    <string name="right_found">Right Pedal found. Connecting...</string>
+    <string name="electric_found">Electrical Sensor found. Connecting...</string>
+
+    <string name="left_connected">Connected to Left Pedal: </string>
+    <string name="right_connected">Connected to Right Pedal: </string>
+    <string name="electric_connected">Connected to Electrical Sensor: </string>
+    <string name="service_discovery">Attempting to start service discovery: </string>
+    <string name="service_discovered">: Service discovered</string>
+    <string name="service_not_found">: Service not found</string>
+    <string name="data_received">: Data received: </string>
+    <string name="data_request">: Data requested</string>
+    <string name="notification_enabled">: Notification enabled</string>
+    <string name="instant_power_received">": Instantaneous Power: "</string>
+    <string name="electrical_power_received">": 100 * Electrical Power: "</string>
+    <string name="connect_check">Check for connected devices</string>
+    <string name="connect_all_success">All devices connected. Stopping scan</string>
+    <string name="unit_power_watt" translatable="false">W</string>
+
+
+    <string name="device_disconnected"> disconnected from GATT server</string>
+
+
+    <string name="label_efficiency">Efficiency</string>
+    <string name="unknown_value" translatable="false">-</string>
+    <string name="label_mechanical">Mechanical System</string>
+    <string name="unit_efficiency_percent" translatable="false">%</string>
+    <string name="label_left">Left</string>
+    <string name="label_right">Right</string>
+    <string name="label_instant_power">Instantaneous Power</string>
+    <string name="label_total_mechanical_power">Total Mechanical Power</string>
+    <string name="label_electrical_system">Electrical System</string>
+    <string name="label_electrical_power">Electrical Power</string>
+
+
 </resources>

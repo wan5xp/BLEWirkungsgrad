@@ -8,11 +8,4 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <style name="Widget" />
-
-    <style name="Widget.ScannerSubtitle">
-        <item name="android:textColor">?attr/colorAccent</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
 </resources>

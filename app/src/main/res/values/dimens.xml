@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <dimen name="alert_dialog_padding">24dp</dimen>
-    <dimen name="alert_dialog_padding_top">18dp</dimen>
-    <dimen name="alert_dialog_padding_bottom">0dp</dimen>
-</resources>
