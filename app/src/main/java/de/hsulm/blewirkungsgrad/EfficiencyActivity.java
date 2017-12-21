@@ -50,8 +50,38 @@ public class EfficiencyActivity extends AppCompatActivity {
     private TextView ePowerTV, lPowerTV, rPowerTV, eConn, lConn, rConn, wirkungsgradTV, mPowerTV;
 
     private BluetoothGatt mElectricGatt, mLeftGatt, mRightGatt;
-    private int lPower = 0, rPower = 0;
+    private int lPower = 0, rPower = 0, mPower = 0;
     private float ePower = 0;
+    // Diese Methode wertet
+    private BluetoothAdapter.LeScanCallback mScanCallback = new BluetoothAdapter.LeScanCallback() {
+        @Override
+        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+            Log.d(TAG, device.getAddress());
+            switch (device.getAddress()) {
+                case LEFT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.left_found));
+                    startLeScanning(false);
+                    mLeftGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                case RIGHT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.right_found));
+                    startLeScanning(false);
+                    mRightGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                case CURRENT_SENSOR_ADDRESS:
+                    Log.i(TAG, getString(R.string.electric_found));
+                    startLeScanning(false);
+                    mElectricGatt = device.connectGatt(getContext(), false, CurrentGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                default:
+                    Log.d(TAG, device.getAddress());
+                    break;
+            }
+        }
+    };
     private BluetoothGattCallback CurrentGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -63,6 +93,7 @@ public class EfficiencyActivity extends AppCompatActivity {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.i(TAG, gatt.getDevice().getName() + R.string.device_disconnected);
                 mElectricGatt.close();
+                mElectricGatt.disconnect();
                 mElectricGatt = null;
                 eConn.setText(R.string.label_electrical_power);
                 onConnectedDeviceCheck();
@@ -184,38 +215,13 @@ public class EfficiencyActivity extends AppCompatActivity {
         }
 
     };
-    // Diese Methode wertet
-    private BluetoothAdapter.LeScanCallback mScanCallback = new BluetoothAdapter.LeScanCallback() {
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-            Log.d(TAG, device.getAddress());
-            switch (device.getAddress()) {
-                case LEFT_PEDAL_ADDRESS:
-                    Log.i(TAG, getString(R.string.left_found));
-                    startLeScanning(false);
-                    mLeftGatt = device.connectGatt(getContext(), false, CPSGattCallback);
-                    break;
-                case RIGHT_PEDAL_ADDRESS:
-                    Log.i(TAG, getString(R.string.right_found));
-                    startLeScanning(false);
-                    mRightGatt = device.connectGatt(getContext(), false, CPSGattCallback);
-                    break;
-                case CURRENT_SENSOR_ADDRESS:
-                    Log.i(TAG, getString(R.string.electric_found));
-                    startLeScanning(false);
-                    mElectricGatt = device.connectGatt(getContext(), false, CurrentGattCallback);
-                    break;
-                default:
-                    Log.d(TAG, device.getAddress());
-                    break;
-            }
-        }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mHandler = new Handler();
+        // Layout einstellen
+        setContentView(R.layout.activity_efficiency);
 
         // Nach BLE Funktion prüfen
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
@@ -240,8 +246,6 @@ public class EfficiencyActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ENABLE_BT);
         }
 
-        // Layout einstellen
-        setContentView(R.layout.activity_efficiency);
         ePowerTV = (TextView) findViewById(R.id.textValueEPower);
         lPowerTV = (TextView) findViewById(R.id.textValueLeftPower);
         rPowerTV = (TextView) findViewById(R.id.textValueRightPower);
@@ -313,13 +317,13 @@ public class EfficiencyActivity extends AppCompatActivity {
             requestElectricalPower();
             updateEfficiency();
         }
-        final int mPower = lPower + rPower;
+        mPower = lPower + rPower;
         mPowerTV.setText(String.valueOf(mPower));
     }
 
     // Diese Methode setzt die neue Daten ein
     private void updateEfficiency() {
-        final int mPower = Integer.parseInt((String) mPowerTV.getText());
+        //final int mPower = Integer.parseInt((String) mPowerTV.getText());
 
         int wirkungsgrad = 0;
         if (mPower != 0)
@@ -363,7 +367,9 @@ public class EfficiencyActivity extends AppCompatActivity {
 
     // Diese Methode schliesen die Verbindung von Bluetooth Geräte mit dem App
     private void close() {
+        Log.d(TAG, "close: Closing");
         if (mElectricGatt != null) {
+            mElectricGatt.disconnect();
             mElectricGatt.close();
             mElectricGatt = null;
         }
