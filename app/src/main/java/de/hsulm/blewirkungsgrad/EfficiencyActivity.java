@@ -52,36 +52,6 @@ public class EfficiencyActivity extends AppCompatActivity {
     private BluetoothGatt mElectricGatt, mLeftGatt, mRightGatt;
     private int lPower = 0, rPower = 0, mPower = 0;
     private float ePower = 0;
-    // Diese Methode wertet
-    private BluetoothAdapter.LeScanCallback mScanCallback = new BluetoothAdapter.LeScanCallback() {
-        @Override
-        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
-            Log.d(TAG, device.getAddress());
-            switch (device.getAddress()) {
-                case LEFT_PEDAL_ADDRESS:
-                    Log.i(TAG, getString(R.string.left_found));
-                    startLeScanning(false);
-                    mLeftGatt = device.connectGatt(getContext(), false, CPSGattCallback);
-                    onConnectedDeviceCheck();
-                    break;
-                case RIGHT_PEDAL_ADDRESS:
-                    Log.i(TAG, getString(R.string.right_found));
-                    startLeScanning(false);
-                    mRightGatt = device.connectGatt(getContext(), false, CPSGattCallback);
-                    onConnectedDeviceCheck();
-                    break;
-                case CURRENT_SENSOR_ADDRESS:
-                    Log.i(TAG, getString(R.string.electric_found));
-                    startLeScanning(false);
-                    mElectricGatt = device.connectGatt(getContext(), false, CurrentGattCallback);
-                    onConnectedDeviceCheck();
-                    break;
-                default:
-                    Log.d(TAG, device.getAddress());
-                    break;
-            }
-        }
-    };
     private BluetoothGattCallback CurrentGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -215,6 +185,36 @@ public class EfficiencyActivity extends AppCompatActivity {
         }
 
     };
+    // Diese Methode wertet ob unsere Geräte in die Scan Ergebnis existiert
+    private BluetoothAdapter.LeScanCallback mScanCallback = new BluetoothAdapter.LeScanCallback() {
+        @Override
+        public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+            Log.d(TAG, device.getAddress());
+            switch (device.getAddress()) {
+                case LEFT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.left_found));
+                    startLeScanning(false);
+                    mLeftGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                case RIGHT_PEDAL_ADDRESS:
+                    Log.i(TAG, getString(R.string.right_found));
+                    startLeScanning(false);
+                    mRightGatt = device.connectGatt(getContext(), false, CPSGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                case CURRENT_SENSOR_ADDRESS:
+                    Log.i(TAG, getString(R.string.electric_found));
+                    startLeScanning(false);
+                    mElectricGatt = device.connectGatt(getContext(), false, CurrentGattCallback);
+                    onConnectedDeviceCheck();
+                    break;
+                default:
+                    Log.d(TAG, device.getAddress());
+                    break;
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -327,7 +327,8 @@ public class EfficiencyActivity extends AppCompatActivity {
 
         int wirkungsgrad = 0;
         if (mPower != 0)
-            wirkungsgrad = (int) ((ePower * 100.0f) / mPower);
+            wirkungsgrad = (int) (((ePower) / mPower) * 100);
+        Log.i(TAG, "updateEfficiency: " + String.valueOf(wirkungsgrad));
         wirkungsgradTV.setText(String.valueOf(wirkungsgrad));
     }
 
@@ -381,5 +382,7 @@ public class EfficiencyActivity extends AppCompatActivity {
             mRightGatt.close();
             mRightGatt = null;
         }
+
+
     }
 }

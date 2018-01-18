@@ -24,40 +24,55 @@
 
     <TableLayout
         android:id="@+id/tableLayout3"
-        android:layout_width="wrap_content"
-        android:layout_height="0dp"
-        android:layout_marginBottom="16dp"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        app:layout_constraintBottom_toTopOf="@id/scrollView2"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/textEffieciencyLabel">
+        app:layout_constraintTop_toBottomOf="@id/textEffieciencyLabel"
+        app:layout_constraintVertical_chainStyle="spread">
 
-        <TableRow
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
+        <android.support.constraint.ConstraintLayout
+            android:id="@+id/tableRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical|center_horizontal">
 
             <TextView
                 android:id="@+id/textValueEfficiency"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp"
                 android:text="@string/unknown_value"
+                android:textAlignment="textEnd"
                 android:textSize="36sp"
+                app:layout_constraintEnd_toStartOf="@id/textUnitEfficiencyLabel"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/textEffieciencyLabel" />
+                app:layout_constraintTop_toTopOf="parent"
+                tools:layout_conversion_absoluteHeight="49dp"
+                tools:layout_conversion_absoluteWidth="41dp"
+                tools:text="20" />
 
             <TextView
                 android:id="@+id/textUnitEfficiencyLabel"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+
+                android:layout_marginEnd="8dp"
+                android:layout_marginStart="8dp"
                 android:text="@string/unit_efficiency_percent"
-
                 android:textSize="36sp"
+                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/textValueEfficiency"
-                app:layout_constraintTop_toBottomOf="@+id/textEffieciencyLabel" />
+                app:layout_constraintTop_toTopOf="parent"
+                tools:layout_conversion_absoluteHeight="49dp"
+                tools:layout_conversion_absoluteWidth="27dp" />
 
-        </TableRow>
+        </android.support.constraint.ConstraintLayout>
     </TableLayout>
 
     <ScrollView
@@ -113,7 +128,8 @@
                         android:layout_weight="1"
                         android:text="@string/label_left"
                         android:textAlignment="center"
-                        android:textSize="18sp" />
+                        android:textSize="18sp"
+                        tools:text="powertap P1.L" />
 
 
                     <Space
@@ -130,7 +146,8 @@
                         android:layout_weight="1"
                         android:text="@string/label_right"
                         android:textAlignment="center"
-                        android:textSize="18sp" />
+                        android:textSize="18sp"
+                        tools:text="powertap P1.R" />
 
 
                 </TableRow>
@@ -147,7 +164,8 @@
                         android:layout_weight="1"
                         android:text="@string/unknown_value"
                         android:textAlignment="center"
-                        android:textSize="18sp" />
+                        android:textSize="18sp"
+                        tools:text="81" />
 
                     <TextView
                         android:id="@+id/textInstantPower"
@@ -167,7 +185,8 @@
                         android:layout_weight="1"
                         android:text="@string/unknown_value"
                         android:textAlignment="center"
-                        android:textSize="18sp" />
+                        android:textSize="18sp"
+                        tools:text="85" />
 
                 </TableRow>
 
@@ -200,7 +219,8 @@
                         android:layout_weight="1"
                         android:text="@string/unknown_value"
                         android:textAlignment="center"
-                        android:textSize="18sp" />
+                        android:textSize="18sp"
+                        tools:text="166" />
                 </TableRow>
 
             </TableLayout>
@@ -242,7 +262,7 @@
                     <TextView
                         android:id="@+id/textValueEPower"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="match_parent"
                         android:layout_gravity="center_vertical"
                         android:layout_marginEnd="8dp"
                         android:layout_marginStart="8dp"
@@ -252,7 +272,8 @@
                         android:textSize="18sp"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/tableLayout" />
+                        app:layout_constraintTop_toBottomOf="@+id/tableLayout"
+                        tools:text="33.14" />
 
                 </TableRow>
             </TableLayout>
